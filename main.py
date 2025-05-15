@@ -1,11 +1,27 @@
-#main.py
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import asyncio
 
 from agent_graph import build_graph, explain_chain  # make sure explain_chain is exported from agent_graph
 
 app = FastAPI()
+
+# Allow requests from your frontend (adjust if needed)
+origins = [
+    "http://localhost:3000",  # React/Vite/Next frontend
+    "http://127.0.0.1:3000",
+    "*"  # Optional: allow all origins (not recommended for production)
+]
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,             # Origins allowed to access the backend
+    allow_credentials=True,
+    allow_methods=["*"],               # Allow all HTTP methods (GET, POST, OPTIONS, etc.)
+    allow_headers=["*"],               # Allow all headers
+)
 
 # Build the LangGraph
 graph = build_graph()
