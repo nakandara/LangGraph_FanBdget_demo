@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pymongo
+python-dotenv
+langchain
+langgraph
+langchain-google-genai
+faiss-cpu
+langchain-community
+
