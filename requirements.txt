@@ -7,4 +7,5 @@ langgraph
 langchain-google-genai
 faiss-cpu
 langchain-community
+rank_bm25
 

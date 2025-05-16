@@ -6,8 +6,11 @@ from langchain.prompts import PromptTemplate
 from langchain_core.runnables import RunnableSequence
 from langchain_google_genai import ChatGoogleGenerativeAI
 from vector_store import load_vector_db
+from langchain.retrievers import EnsembleRetriever
 from typing import TypedDict, List
 from dotenv import load_dotenv
+from langchain.retrievers import BM25Retriever
+from config import db
 
 load_dotenv()
 
@@ -69,17 +72,41 @@ Provide the most complete, accurate response possible:
 
 explain_chain: RunnableSequence = prompt | llm
 
-# Load vector store
+# --- Semantic retriever ---
 vector_db = load_vector_db()
-retriever = vector_db.as_retriever()
+semantic_retriever = vector_db.as_retriever(search_type="similarity", search_kwargs={"k": 4})
+
+
+# --- Keyword retriever using BM25 ---
+# Create basic BM25 retriever from raw mongo docs
+def create_bm25_retriever():
+    from langchain.schema import Document
+    all_docs = []
+    for collection_name in db.list_collection_names():
+        collection = db[collection_name]
+        for doc in collection.find({}, {"_id": 0}):
+            text = f"{doc.get('title', '')}\n{doc.get('description', '')}\n{doc.get('category', '')}"
+            all_docs.append(Document(page_content=text, metadata={"collection": collection_name}))
+    
+    bm25 = BM25Retriever.from_documents(all_docs)
+    bm25.k = 4
+    return bm25
+
+keyword_retriever = create_bm25_retriever()
+
+# --- Combine both (Hybrid) ---
+retriever = EnsembleRetriever(
+    retrievers=[semantic_retriever, keyword_retriever],
+    weights=[0.6, 0.4]  # adjust weight as needed
+)
+print("🔗 Hybrid retriever initialized.",retriever)
 
 # Step 1: Retrieve relevant documents
 def semantic_retrieve_step(state: GraphState) -> GraphState:
     print("🔍 Retrieving documents...")
     question = state["question"]
     memory.chat_memory.add_user_message(question)
-
-    docs = retriever.invoke(question)
+    docs = retriever.get_relevant_documents(question)
     formatted = [f"[collection: {doc.metadata.get('collection')}]\n{doc.page_content}" for doc in docs]
     print(f"✅ Retrieved {len(docs)} documents.")
 
