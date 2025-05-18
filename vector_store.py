@@ -59,6 +59,33 @@ def build_vector_db():
             "source": "mongodb"
         }
         documents.append(Document(page_content=text, metadata=metadata))
+    # Process users collection
+    users_collection = db['users']
+    for user in users_collection.find({}, {"_id": 0, "password": 0, "firebaseToken": 0, "__v": 0}):  # Exclude sensitive fields
+        text_parts = [
+            f"User Name: {user.get('name', 'N/A')}",
+            f"Email: {user.get('email', 'N/A')}",
+            f"Phone: {user.get('phoneNumber', 'N/A')}",
+            f"User Type: {user.get('userType', 'N/A')}",
+            f"Role: {user.get('role', 'N/A')}",
+            f"Premium Status: {user.get('premiumStatus', 'N/A')}",
+            f"Premium Type: {user.get('premiumUserType', 'N/A')}",
+            f"Verification Status: {user.get('verifiedStatus', 'N/A')}",
+            f"Account Medium: {user.get('medium', 'N/A')}",
+            f"Manages Inventory: {'Yes' if user.get('isMaintainInventory', False) else 'No'}"
+        ]
+        
+        text = "\n".join([part for part in text_parts if not part.endswith('N/A')])
+        metadata = {
+            "collection": "users",
+            "user_name": user.get('name', ''),
+            "email": user.get('email', ''),
+            "type": "user_profile",
+            "source": "mongodb"
+        }
+        documents.append(Document(page_content=text, metadata=metadata))
+        print(f"Added user: {user.get('name', '')}")  # Debug
+
 
      # Process shops collection
     shops_collection = db['shops']

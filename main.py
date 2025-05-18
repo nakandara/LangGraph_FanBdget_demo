@@ -2,57 +2,51 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import asyncio
-
-from agent_graph import build_graph, explain_chain  # make sure explain_chain is exported from agent_graph
+from agent_graph import build_graph, explain_chain  # Now these imports will work
 
 app = FastAPI()
 
-# Allow requests from your frontend (adjust if needed)
-origins = [
-    "http://localhost:3000",  # React/Vite/Next frontend
-    "http://127.0.0.1:3000",
-    "*"  # Optional: allow all origins (not recommended for production)
-]
-
-# Add CORS middleware
+# CORS setup (keep your existing CORS configuration)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,             # Origins allowed to access the backend
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],               # Allow all HTTP methods (GET, POST, OPTIONS, etc.)
-    allow_headers=["*"],               # Allow all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# Build the LangGraph
-graph = build_graph()
+# Build the graph
+chain = build_graph()
 
-# Pydantic model for request body
 class QuestionInput(BaseModel):
     question: str
 
-# Route to handle LangGraph question
 @app.post("/ask")
 async def ask_question(input: QuestionInput):
     try:
         print(f"📥 Received question: {input.question}")
-        result = await asyncio.to_thread(graph.invoke, {"question": input.question})
-        print("✅ Final answer generated.")
+        result = await asyncio.to_thread(
+            chain.invoke,
+            {"question": input.question}
+        )
         return {
             "question": input.question,
-            "answer": result.get("response", "No response generated")
+            "answer": result.get("final_answer", "No response generated")
         }
     except Exception as e:
         print(f"❌ Error occurred: {e}")
         return {"error": str(e)}
 
-# Test route to verify explain_chain works alone
 @app.get("/test")
-def test_explain_chain():
+async def test_chain():
     try:
-        print("🧪 Testing explain_chain with sample input...")
-        response = explain_chain.invoke({"data": "Test Sinhala data"})
-        print("✅ Explanation generated.")
-        return {"response": response}
+        test_response = explain_chain.invoke({
+            "question": "Test question",
+            "semantic_results": "Test data",
+            "keyword_results": "Test keywords",
+            "graph_results": "Test graph",
+            "current_date": "2025-05-17"
+        })
+        return {"response": test_response.content}
     except Exception as e:
-        print(f"❌ Error: {e}")
         return {"error": str(e)}

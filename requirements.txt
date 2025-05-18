@@ -8,4 +8,6 @@ langchain-google-genai
 faiss-cpu
 langchain-community
 rank_bm25
-
+py2neo
+python-dotenv
+neo4j
