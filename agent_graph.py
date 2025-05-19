@@ -155,35 +155,38 @@ semantic_retriever = vector_db.as_retriever(
     search_kwargs={"k": 5, "score_threshold": 0.7}
 )
 
-def get_bm25_documents():
-    documents = []
-    for collection_name in ['inventories', 'shops', 'invoiceitems']:
-        for doc in db[collection_name].find({}, {"_id": 0}):
-            text = f"{doc.get('productName', doc.get('shopName', ''))}\n"
-            text += f"{doc.get('description', doc.get('shopAddress', ''))}\n"
-            text += f"Price: {doc.get('price', doc.get('productPrice', 'N/A'))} LKR"
-            documents.append(Document(
-                page_content=text,
-                metadata={
-                    "source": collection_name,
-                    "name": doc.get('productName', doc.get('shopName', 'Unknown'))
-                }
-            ))
-    return documents
+# Temporarily disabled keyword retriever
+# def get_bm25_documents():
+#     documents = []
+#     for collection_name in ['inventories', 'shops', 'invoiceitems']:
+#         for doc in db[collection_name].find({}, {"_id": 0}):
+#             text = f"{doc.get('productName', doc.get('shopName', ''))}\n"
+#             text += f"{doc.get('description', doc.get('shopAddress', ''))}\n"
+#             text += f"Price: {doc.get('price', doc.get('productPrice', 'N/A'))} LKR"
+#             documents.append(Document(
+#                 page_content=text,
+#                 metadata={
+#                     "source": collection_name,
+#                     "name": doc.get('productName', doc.get('shopName', 'Unknown'))
+#                 }
+#             ))
+#     return documents
 
-keyword_retriever = BM25Retriever.from_documents(get_bm25_documents())
-keyword_retriever.k = 5
+# keyword_retriever = BM25Retriever.from_documents(get_bm25_documents())
+# keyword_retriever.k = 5
 
+# Using only semantic retriever for now
 retriever = EnsembleRetriever(
     retrievers=[semantic_retriever],
-    weights=[0.6, 0.4]
+    weights=[1.0]  # 100% weight to semantic retriever
 )
 
 def format_semantic_results(docs):
     return [f"[collection: {doc.metadata.get('source', 'unknown')}]\n{doc.page_content}" for doc in docs]
 
 def format_keyword_results(docs):
-    return [f"[collection: {doc.metadata.get('source', 'unknown')}]\n{doc.page_content}" for doc in docs]
+    return []  # Return empty list since keyword search is disabled
+    # return [f"[collection: {doc.metadata.get('source', 'unknown')}]\n{doc.page_content}" for doc in docs]
 
 def format_graph_results(results):
     if not results:
@@ -213,9 +216,10 @@ def retrieve_step(state: GraphState):
     print(f"\n🔍 Retrieving data for: {question}")
     
     try:
-        # 1. Hybrid Search
+        # 1. Hybrid Search (only semantic for now)
         semantic_docs = semantic_retriever.invoke(question)
-        keyword_docs = keyword_retriever.invoke(question)
+        keyword_docs = []  # Empty list since keyword search is disabled
+        # keyword_docs = keyword_retriever.invoke(question)
         
         # 2. Graph Search
         if any(word in question.lower() for word in ['shop', 'store', 'location']):
@@ -278,6 +282,7 @@ def final_step(state: GraphState) -> GraphState:
         "final_answer": state["final_answer"],  # Full response object
         "response": state["final_answer"].content  # Just the content for backward compatibility
     }
+
 def build_graph():
     workflow = StateGraph(GraphState)
     workflow.add_node("retrieve", retrieve_step)
